@@ -250,3 +250,4 @@ Private — Capila, s. r. o.
 ## Support
 
 For issues or questions, contact the Capila team.
+# Deployment trigger
