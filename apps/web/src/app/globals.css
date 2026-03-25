@@ -1,0 +1,44 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bg-primary: 255 255 255;
+    --bg-card: 249 250 251;
+    --bg-elevated: 255 255 255;
+    --text-primary: 17 24 39;
+    --text-secondary: 107 114 128;
+    --accent-primary: 0 212 170;
+    --accent-secondary: 99 102 241;
+  }
+
+  .dark {
+    --bg-primary: 15 17 23;
+    --bg-card: 26 29 39;
+    --bg-elevated: 36 40 54;
+    --text-primary: 240 240 245;
+    --text-secondary: 139 143 163;
+    --accent-primary: 0 212 170;
+    --accent-secondary: 99 102 241;
+  }
+
+  body {
+    @apply bg-bg-primary text-text-primary font-sans;
+    font-feature-settings: 'rlig' 1, 'calt' 1;
+  }
+
+  /* Tabular numbers for amounts */
+  .tabular-nums {
+    font-family: 'JetBrains Mono', monospace;
+    font-feature-settings: 'tnum';
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}

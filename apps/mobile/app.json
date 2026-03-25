@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "Spending Dashboard",
+    "slug": "spending-dashboard",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "scheme": "spending-dashboard",
+    "splash": {
+      "backgroundColor": "#0f1117"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.spending.dashboard"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0f1117"
+      },
+      "package": "com.spending.dashboard"
+    },
+    "plugins": ["expo-router", "expo-secure-store"]
+  }
+}
