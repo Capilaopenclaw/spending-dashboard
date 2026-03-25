@@ -143,7 +143,7 @@ export async function listInstitutions(accessToken: string, country: string): Pr
 export async function createAgreement(
   accessToken: string,
   institutionId: string,
-  maxHistoricalDays: number = 730,
+  maxHistoricalDays: number = 90,
   accessValidForDays: number = 90
 ): Promise<GCAgreement> {
   return gcFetch<GCAgreement>('/api/v2/agreements/enduser/', {
