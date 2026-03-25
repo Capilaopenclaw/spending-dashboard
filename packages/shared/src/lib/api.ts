@@ -49,6 +49,13 @@ export class ApiClient {
     })
   }
 
+  async finalizeBankConnection(requisitionId: string) {
+    return this.request<{ status: string; accounts_created: number }>('gc-callback', {
+      method: 'POST',
+      body: JSON.stringify({ requisition_id: requisitionId }),
+    })
+  }
+
   async disconnectBank(connectionId: string) {
     return this.request<{ success: boolean }>('gc-disconnect-bank', {
       method: 'POST',

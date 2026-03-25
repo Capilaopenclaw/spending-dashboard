@@ -8,7 +8,7 @@
 
 import { serve } from 'https://deno.land/std@0.208.0/http/server.ts'
 import { corsHeaders, handleCors } from '../_shared/cors.ts'
-import { getSupabaseAdmin } from '../_shared/supabase.ts'
+import { getSupabaseClient, getSupabaseAdmin } from '../_shared/supabase.ts'
 import { getValidAccessToken } from '../_shared/gc-token-manager.ts'
 import {
   getAccountTransactions,
@@ -20,29 +20,44 @@ serve(async (req) => {
   const corsResponse = handleCors(req)
   if (corsResponse) return corsResponse
 
-  // Verify cron secret or service role
-  const authHeader = req.headers.get('Authorization')
-  const cronSecret = Deno.env.get('CRON_SECRET')
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-    // Also allow service role key
-    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-    if (!serviceKey || !authHeader?.includes(serviceKey)) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
-  }
-
   try {
     const supabaseAdmin = getSupabaseAdmin()
+    let userIdFilter: string | null = null
+
+    // 1. Determine Auth Mode
+    const authHeader = req.headers.get('Authorization')
+    const cronSecret = Deno.env.get('CRON_SECRET')
+    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+
+    const isSystemCall = (cronSecret && authHeader === `Bearer ${cronSecret}`) || 
+                       (serviceKey && authHeader?.includes(serviceKey))
+
+    if (!isSystemCall) {
+      // User call — verify user token
+      const supabase = getSupabaseClient(req)
+      const { data: { user }, error } = await supabase.auth.getUser()
+      if (error || !user) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+      userIdFilter = user.id
+    }
+
     const accessToken = await getValidAccessToken(supabaseAdmin)
 
-    // Get all active connections
-    const { data: connections, error: connError } = await supabaseAdmin
+    // 2. Get active connections
+    let query = supabaseAdmin
       .from('bank_connections')
       .select('id, user_id, last_synced_at')
       .eq('status', 'linked')
+
+    if (userIdFilter) {
+      query = query.eq('user_id', userIdFilter)
+    }
+
+    const { data: connections, error: connError } = await query
 
     if (connError || !connections?.length) {
       return new Response(

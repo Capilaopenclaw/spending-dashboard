@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
-import { Building2, Unlink, Plus, Globe, ArrowLeftRight, Check, X, Link2 } from 'lucide-react'
+import { Building2, Unlink, Plus, Globe, ArrowLeftRight, Check, X, Link2, Trash2, Loader2 } from 'lucide-react'
 
 export default function SettingsPage() {
   const language = useAppStore((s) => s.language)
@@ -24,14 +24,47 @@ export default function SettingsPage() {
   const { data: transferPairs } = useTransferPairs({ pendingOnly: true })
   const queryClient = useQueryClient()
   const searchParams = useSearchParams()
+  const [finalizing, setFinalizing] = useState(false)
 
   // Handle GoCardless callback
   useEffect(() => {
     const gcRef = searchParams.get('gc_ref')
     const gcStatus = searchParams.get('gc_status')
+    
     if (gcRef && gcStatus === 'success') {
-      queryClient.invalidateQueries({ queryKey: ['bank-connections'] })
-      queryClient.invalidateQueries({ queryKey: ['accounts'] })
+      const finalize = async () => {
+        setFinalizing(true)
+        try {
+          const supabase = createClient()
+          const { data: { session } } = await supabase.auth.getSession()
+          if (!session) return
+
+          const api = new ApiClient({
+            supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+            accessToken: session.access_token,
+          })
+
+          // Finalize connection (fetch accounts, etc.)
+          await api.finalizeBankConnection(gcRef)
+          
+          // Trigger initial sync
+          await api.syncAll()
+          
+          // Refresh UI
+          queryClient.invalidateQueries({ queryKey: ['bank-connections'] })
+          queryClient.invalidateQueries({ queryKey: ['accounts'] })
+          queryClient.invalidateQueries({ queryKey: ['transactions'] })
+          queryClient.invalidateQueries({ queryKey: ['balance-summary'] })
+        } catch (err) {
+          console.error('Finalization error:', err)
+        } finally {
+          setFinalizing(false)
+          // Clear URL params without reload
+          window.history.replaceState({}, '', window.location.pathname)
+        }
+      }
+      finalize()
     }
   }, [searchParams, queryClient])
 
@@ -72,6 +105,22 @@ export default function SettingsPage() {
       queryClient.invalidateQueries({ queryKey: ['bank-connections'] })
     } catch (err) {
       console.error('Disconnect error:', err)
+    }
+  }
+
+  async function handleDeleteConnection(connectionId: string) {
+    if (!confirm(t(language === 'sk' ? 'Naozaj chcete vymazať toto spojenie?' : 'Are you sure you want to delete this connection?', language))) return
+    
+    try {
+      const supabase = createClient()
+      const { error } = await supabase.from('bank_connections').delete().eq('id', connectionId)
+      if (error) throw error
+      
+      queryClient.invalidateQueries({ queryKey: ['bank-connections'] })
+      queryClient.invalidateQueries({ queryKey: ['accounts'] })
+      queryClient.invalidateQueries({ queryKey: ['transactions'] })
+    } catch (err) {
+      console.error('Delete connection error:', err)
     }
   }
 
@@ -116,7 +165,19 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="space-y-6 max-w-2xl relative">
+      {finalizing && (
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-bg-primary/80 backdrop-blur-sm rounded-xl">
+          <Loader2 className="h-8 w-8 animate-spin text-accent-primary mb-4" />
+          <p className="text-lg font-medium text-text-primary">
+            {language === 'sk' ? 'Finalizujem prepojenie...' : 'Finalizing connection...'}
+          </p>
+          <p className="text-sm text-text-secondary">
+            {language === 'sk' ? 'Sťahujem informácie o účtoch a transakcie.' : 'Fetching account details and transactions.'}
+          </p>
+        </div>
+      )}
+
       <h1 className="text-2xl font-bold">{t('settings.title', language)}</h1>
 
       {/* Language */}
@@ -180,13 +241,26 @@ export default function SettingsPage() {
                       )}
                     </div>
                   </div>
-                  <Button
-                    variant="danger"
-                    size="sm"
-                    onClick={() => handleDisconnect(conn.id)}
-                  >
-                    <Unlink size={14} />
-                  </Button>
+                  <div className="flex gap-2">
+                    {conn.status === 'linked' && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDisconnect(conn.id)}
+                        title={language === 'sk' ? 'Odpojiť' : 'Disconnect'}
+                      >
+                        <Unlink size={14} />
+                      </Button>
+                    )}
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      onClick={() => handleDeleteConnection(conn.id)}
+                      title={language === 'sk' ? 'Vymazať' : 'Delete'}
+                    >
+                      <Trash2 size={14} />
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
