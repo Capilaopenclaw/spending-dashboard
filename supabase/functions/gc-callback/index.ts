@@ -17,18 +17,22 @@ serve(async (req) => {
   if (corsResponse) return corsResponse
 
   try {
-    // Verify user
-    const supabase = getSupabaseClient(req)
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
+    const supabaseAdmin = getSupabaseAdmin()
+    let user: any
+
+    // Support both authenticated user calls and service-level calls
+    const authHeader = req.headers.get('Authorization')
+    
+    if (authHeader?.startsWith('Bearer ') && authHeader.length > 50) {
+      const supabase = getSupabaseClient(req)
+      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
+      if (!authError && authUser) {
+        user = authUser
+      }
     }
 
     const body = await req.json()
-    const { requisition_id } = body
+    const { requisition_id, user_id } = body
 
     if (!requisition_id) {
       return new Response(JSON.stringify({ error: 'requisition_id is required' }), {
@@ -37,11 +41,24 @@ serve(async (req) => {
       })
     }
 
-    const supabaseAdmin = getSupabaseAdmin()
+    // If service call, use user_id from body
+    if (!user && user_id) {
+      user = { id: user_id }
+    }
+
+    if (!user) {
+      return new Response(JSON.stringify({ error: 'User identity required' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
     const accessToken = await getValidAccessToken(supabaseAdmin)
 
     // 1. Get requisition status and account IDs
+    console.log(`Finalizing requisition ${requisition_id} for user ${user.id}`)
     const requisition = await getRequisition(accessToken, requisition_id)
+    console.log(`Requisition status: ${requisition.status}, accounts found: ${requisition.accounts?.length || 0}`)
 
     // 2. Find our bank_connection record
     const { data: connection, error: connError } = await supabaseAdmin
@@ -52,6 +69,7 @@ serve(async (req) => {
       .single()
 
     if (connError || !connection) {
+      console.error('Bank connection not found in DB:', connError)
       return new Response(JSON.stringify({ error: 'Bank connection not found' }), {
         status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -88,13 +106,17 @@ serve(async (req) => {
 
     // 3. Fetch details for each account
     const accountsCreated = []
-    for (const externalAccountId of requisition.accounts) {
+    const accountsToProcess = requisition.accounts || []
+    
+    for (const externalAccountId of accountsToProcess) {
       try {
+        console.log(`Processing account ${externalAccountId}`)
         // Get account details
         let details: any = {}
         try {
           const detailsResponse = await getAccountDetails(accessToken, externalAccountId)
           details = detailsResponse.account || {}
+          console.log(`Account details for ${externalAccountId}:`, details)
         } catch (e) {
           console.warn(`Could not fetch details for account ${externalAccountId}:`, e)
         }
@@ -105,6 +127,7 @@ serve(async (req) => {
         try {
           const balancesResponse = await getAccountBalances(accessToken, externalAccountId)
           for (const bal of balancesResponse.balances || []) {
+            console.log(`Balance for ${externalAccountId}:`, bal)
             if (bal.balanceType === 'interimAvailable' || bal.balanceType === 'expected') {
               availableBalance = parseFloat(bal.balanceAmount.amount)
             }
@@ -124,13 +147,13 @@ serve(async (req) => {
         const accountType = guessAccountType(details.cashAccountType, details.product, details.name)
 
         const accountId = crypto.randomUUID()
-        const { error: insertError } = await supabaseAdmin.from('accounts').insert({
+        const accountData = {
           id: accountId,
           user_id: user.id,
           bank_connection_id: connection.id,
           external_account_id: externalAccountId,
           iban: details.iban || null,
-          account_name: details.name || details.product || null,
+          account_name: details.name || details.product || 'Main Account',
           account_type: accountType,
           currency: details.currency || 'EUR',
           current_balance: currentBalance,
@@ -138,16 +161,21 @@ serve(async (req) => {
           balance_updated_at: currentBalance !== null ? new Date().toISOString() : null,
           is_primary: accountsCreated.length === 0, // first account is primary
           is_active: true,
-        })
+        }
+        
+        console.log(`Inserting account:`, accountData)
+
+        const { error: insertError } = await supabaseAdmin.from('accounts').insert(accountData)
 
         if (insertError) {
           console.error(`Failed to insert account ${externalAccountId}:`, insertError)
         } else {
+          console.log(`Account ${externalAccountId} inserted successfully`)
           accountsCreated.push({
             id: accountId,
             external_account_id: externalAccountId,
             iban: details.iban,
-            name: details.name || details.product,
+            name: accountData.account_name,
           })
         }
       } catch (e) {

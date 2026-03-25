@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
-import { Building2, Unlink, Plus, Globe, ArrowLeftRight, Check, X, Link2, Trash2, Loader2 } from 'lucide-react'
+import { Building2, Unlink, Plus, Globe, ArrowLeftRight, Check, X, Link2, Trash2, Loader2, RefreshCcw } from 'lucide-react'
 
 export default function SettingsPage() {
   const language = useAppStore((s) => s.language)
@@ -121,6 +121,24 @@ export default function SettingsPage() {
       queryClient.invalidateQueries({ queryKey: ['transactions'] })
     } catch (err) {
       console.error('Delete connection error:', err)
+    }
+  }
+
+  async function handleSync(connectionId: string) {
+    try {
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) return
+
+      const api = new ApiClient({
+        supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        accessToken: session.access_token,
+      })
+      await api.syncAll()
+      queryClient.invalidateQueries()
+    } catch (err) {
+      console.error('Sync error:', err)
     }
   }
 
@@ -242,6 +260,14 @@ export default function SettingsPage() {
                     </div>
                   </div>
                   <div className="flex gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleSync(conn.id)}
+                      title={language === 'sk' ? 'Synchronizovať' : 'Sync now'}
+                    >
+                      <RefreshCcw size={14} />
+                    </Button>
                     {conn.status === 'linked' && (
                       <Button
                         variant="ghost"

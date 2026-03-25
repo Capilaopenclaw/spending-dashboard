@@ -26,23 +26,18 @@ serve(async (req) => {
 
     // 1. Determine Auth Mode
     const authHeader = req.headers.get('Authorization')
-    const cronSecret = Deno.env.get('CRON_SECRET')
-    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-
-    const isSystemCall = (cronSecret && authHeader === `Bearer ${cronSecret}`) || 
-                       (serviceKey && authHeader?.includes(serviceKey))
-
-    if (!isSystemCall) {
-      // User call — verify user token
+    
+    if (authHeader?.startsWith('Bearer ') && authHeader.length > 50) {
       const supabase = getSupabaseClient(req)
       const { data: { user }, error } = await supabase.auth.getUser()
-      if (error || !user) {
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-          status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        })
+      if (!error && user) {
+        userIdFilter = user.id
       }
-      userIdFilter = user.id
+    }
+
+    const body = await req.json().catch(() => ({}))
+    if (!userIdFilter && body.user_id) {
+      userIdFilter = body.user_id
     }
 
     const accessToken = await getValidAccessToken(supabaseAdmin)

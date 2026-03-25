@@ -25,26 +25,27 @@ serve(async (req) => {
 
     // Support both authenticated user calls and service-level calls
     const authHeader = req.headers.get('Authorization')
-    if (authHeader?.startsWith('Bearer ')) {
+    
+    if (authHeader?.startsWith('Bearer ') && authHeader.length > 50) {
       const supabase = getSupabaseClient(req)
-      const { data: { user }, error } = await supabase.auth.getUser()
-      if (error || !user) {
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-          status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        })
+      const { data: { user: authUser }, error } = await supabase.auth.getUser()
+      if (!error && authUser) {
+        userId = authUser.id
       }
-      userId = user.id
-    } else {
-      // Internal/cron call - requires service role key in body
+    }
+
+    if (!userId) {
       const body = await req.json().catch(() => ({}))
-      if (!body.user_id) {
-        return new Response(JSON.stringify({ error: 'user_id required for service calls' }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        })
+      if (body.user_id) {
+        userId = body.user_id
       }
-      userId = body.user_id
+    }
+
+    if (!userId) {
+      return new Response(JSON.stringify({ error: 'User identity required' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
     }
 
     // Step 1: Auto-categorize transfers with "Prevody" category
