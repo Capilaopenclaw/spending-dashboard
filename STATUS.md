@@ -60,6 +60,25 @@
 - Supabase RPC calls cast to `any` due to untyped custom functions
 - All UI strings go through `t()` i18n function (SK/EN/HU)
 
-### Next: Phase 6 — Cron & Lifecycle
-- [ ] Supabase cron jobs (token refresh, sync, health check, weekly insights)
-- [ ] 90-day consent renewal flow
+### Phase 6: Cron & Lifecycle ✅ (Configuration Required)
+- ✅ **Migration:** `005_cron_jobs.sql` (pg_cron setup — manual config needed)
+- ✅ **Edge Functions:** `gc-refresh-tokens`, `notify-consent-expiry`
+- ✅ **Cron Documentation:** `CRON_SETUP.md` with 3 setup options (Supabase Dashboard / Vercel / GitHub Actions)
+- ⏳ **Manual Setup Required:** 6 cron jobs (sync every 6h, insights weekly, token refresh 12h, consent check daily, cleanup weekly, health check 30m)
+- ✅ **Consent Renewal Flow:** Automated notifications 7 days before expiry, status `expiring_soon`
+
+### Cron Jobs Defined:
+1. **Transaction Sync** (every 6 hours) → `gc-sync-all`
+2. **AI Insights** (Monday 07:00 UTC) → `ai-insights`
+3. **Token Refresh** (every 12 hours) → `gc-refresh-tokens`
+4. **Consent Expiry Check** (daily 08:00 UTC) → `notify-consent-expiry`
+5. **Cleanup Sync Logs** (weekly Sunday 02:00 UTC) → SQL delete
+6. **Health Check** (every 30 minutes) → SQL insert
+
+### Next: Phase 7 — Polish & Production Readiness
+- [ ] GoCardless Production approval (real Slovak banks)
+- [ ] Supabase Auth callbacks configuration
+- [ ] Production environment variables
+- [ ] Error monitoring (Sentry / LogRocket)
+- [ ] Performance optimization (query indexes, caching)
+- [ ] Mobile app polish (Expo build, app store submission)
