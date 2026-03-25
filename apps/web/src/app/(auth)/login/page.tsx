@@ -69,7 +69,8 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            <div className="relative">
+            {/* Google login disabled - enable in Supabase Dashboard → Auth → Providers → Google */}
+            {/* <div className="relative">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-white/10" />
               </div>
@@ -81,7 +82,7 @@ export default function LoginPage() {
             <Button variant="secondary" className="w-full" onClick={handleGoogle}>
               <Chrome size={16} />
               Prihlásiť sa cez Google
-            </Button>
+            </Button> */}
           </>
         )}
 
