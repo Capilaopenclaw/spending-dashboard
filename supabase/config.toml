@@ -43,7 +43,5 @@ enabled = false
 client_id = ""
 secret = ""
 
-# Database settings for production cron jobs
-[db.settings]
-"app.supabase_functions_url" = "https://tduwpkyufgiumgbtyime.supabase.co/functions/v1"
-"app.supabase_service_role_key" = "env(SUPABASE_SERVICE_ROLE_KEY)"
+# Database settings removed - not supported in Supabase config
+# Use environment variables or secrets management instead
