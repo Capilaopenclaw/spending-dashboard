@@ -51,7 +51,7 @@ export default function SettingsPage() {
         'SANDBOXFINANCE_SFIN0000',
         `${window.location.origin}/api/gc-callback`
       )
-      window.location.href = result.link
+      window.location.href = result.auth_link
     } catch (err) {
       console.error('Connect bank error:', err)
     }

@@ -38,12 +38,12 @@ export class ApiClient {
   }
 
   // GoCardless
-  async getInstitutions(country: string = 'SK') {
-    return this.request<{ institutions: any[] }>(`gc-institutions?country=${country}`)
+  async getInstitutions(country: string = 'sk') {
+    return this.request<any[]>(`gc-institutions?country=${country}`)
   }
 
   async connectBank(institutionId: string, redirectUrl: string) {
-    return this.request<{ link: string; requisitionId: string }>('gc-connect-bank', {
+    return this.request<{ auth_link: string; requisition_id: string }>('gc-connect-bank', {
       method: 'POST',
       body: JSON.stringify({ institution_id: institutionId, redirect_url: redirectUrl }),
     })
@@ -57,19 +57,33 @@ export class ApiClient {
   }
 
   async syncAll() {
-    return this.request<{ synced: number }>('gc-sync-all', { method: 'POST' })
+    return this.request<{ 
+      success: boolean; 
+      connections_synced: number; 
+      total_accounts_synced: number; 
+      total_transactions_added: number; 
+      results: any[] 
+    }>('gc-sync-all', { method: 'POST' })
   }
 
   // AI
   async categorizeTransactions(transactionIds?: string[]) {
-    return this.request<{ categorized: number }>('ai-categorize', {
+    return this.request<{ 
+      success: boolean; 
+      categorized: number; 
+      total_uncategorized: number 
+    }>('ai-categorize', {
       method: 'POST',
       body: JSON.stringify({ transaction_ids: transactionIds }),
     })
   }
 
   async getInsights() {
-    return this.request<{ insights: any[] }>('ai-insights', { method: 'POST' })
+    return this.request<{ 
+      success: boolean; 
+      insights_created: number; 
+      results?: any[] 
+    }>('ai-insights', { method: 'POST' })
   }
 
   // AI Chat — returns ReadableStream for SSE
