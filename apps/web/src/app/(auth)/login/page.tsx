@@ -87,7 +87,7 @@ export default function LoginPage() {
 
         <div className="flex gap-2">
           <Button
-            variant={mode === 'signin' ? 'default' : 'secondary'}
+            variant={mode === 'signin' ? 'primary' : 'secondary'}
             size="sm"
             onClick={() => setMode('signin')}
             className="flex-1"
@@ -95,7 +95,7 @@ export default function LoginPage() {
             Prihlásenie
           </Button>
           <Button
-            variant={mode === 'signup' ? 'default' : 'secondary'}
+            variant={mode === 'signup' ? 'primary' : 'secondary'}
             size="sm"
             onClick={() => setMode('signup')}
             className="flex-1"
@@ -103,7 +103,7 @@ export default function LoginPage() {
             Registrácia
           </Button>
           <Button
-            variant={mode === 'magic' ? 'default' : 'secondary'}
+            variant={mode === 'magic' ? 'primary' : 'secondary'}
             size="sm"
             onClick={() => setMode('magic')}
             className="flex-1"
